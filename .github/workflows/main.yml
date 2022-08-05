@@ -1,0 +1,31 @@
+name: Validate
+on:
+  workflow_dispatch:
+    branches: [master]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        ref: develop
+    - uses: actions/setup-node@v1
+      with:
+        node-version: 14.x
+    - name: Install Salesforce CLI
+      run: |
+        rm -rf package-lock.json
+        rm -rf ./node_modules
+        npm install sfdx-cli
+        node_modules/sfdx-cli/bin/run --version
+        node_modules/sfdx-cli/bin/run plugins --core
+    - name: Authenticate staging org
+      run: |
+        echo "${url_secret}" > sfdxUrl
+        echo "Authenticating the PRF org"
+        node_modules/sfdx-cli/bin/run force:auth:sfdxurl:store -f sfdxUrl -s -a Lucia
+      env:
+        url_secret: ${{ secrets.url_secret }}
+    - name: Deploy Source
+      run: |
+        node_modules/sfdx-cli/bin/run force:source:deploy -u Lucia -x manifest/package.xml -l RunLocalTests -c --verbose
